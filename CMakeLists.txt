@@ -5,6 +5,8 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+add_subdirectory(${PROJECT_SOURCE_DIR}/extlibs/rapidyaml ryml)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
@@ -16,7 +18,21 @@ include_directories("${PROJECT_SOURCE_DIR}/extlibs/asio")
 set(
 	SOURCES
     "${PROJECT_SOURCE_DIR}/src/main.cpp"
+    "${PROJECT_SOURCE_DIR}/src/LogMessage.cpp"
+    "${PROJECT_SOURCE_DIR}/src/Server.cpp"
+    "${PROJECT_SOURCE_DIR}/src/Client.cpp"
+    "${PROJECT_SOURCE_DIR}/src/LogsProcessorClient.cpp"
 )
+
+if(WIN32) # Check if we are on Windows
+  if( ${CMAKE_SYSTEM_VERSION} EQUAL 10)
+    add_compile_definitions(_WIN32_WINNT=0x0A00)
+  endif()
+elseif(UNIX)
+  # Nothing special required
+else()
+  message(SEND_ERROR "You are on an unsupported platform! (Not Win32, Mac OS X or Unix)")
+endif(WIN32)
 
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
     set(USING_GCC TRUE)
@@ -35,4 +51,4 @@ add_executable(
     ${SOURCES}
 )
 
-target_link_libraries("xalmascarpone_logs" wsock32 ws2_32)
+target_link_libraries("xalmascarpone_logs" wsock32 ws2_32 ryml)

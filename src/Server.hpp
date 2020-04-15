@@ -4,23 +4,29 @@
 #include <asio/asio.hpp>
 #include <vector>
 
-using asio::ip::tcp;
+#include "LogsProcessorClient.hpp"
+#include "LogMessage.hpp"
 
-class Session;
-typedef std::shared_ptr<Session> SessionPtr;
+class Client;
+
+typedef std::shared_ptr<Client> ClientPtr;
+using asio::ip::tcp;
 
 class Server
 {
 public:
-    Server(asio::io_context& io_context, const tcp::endpoint& endpoint);
+    Server(asio::io_context& io_context, const tcp::endpoint& endpoint, LogsProcessorClient& logsProcessorClient);
 
-    void leave(SessionPtr session);
+    void leave(ClientPtr session);
+    void sendMessageToLogProcessor(const LogMessage& message);
 
 private:
-    void do_accept();
+    void acceptConnection();
 
     tcp::acceptor m_acceptor;
-    std::vector<SessionPtr> m_sessions;
+    std::vector<ClientPtr> m_sessions;
+
+    LogsProcessorClient& m_logsProcessorClient;
 };
 
 #endif // MASCARPONELOGS_SERVER_HPP

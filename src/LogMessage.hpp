@@ -1,81 +1,34 @@
 #ifndef MASCARPONELOGS_LOGMESSAGE_HPP
 #define MASCARPONELOGS_LOGMESSAGE_HPP
 
-#include <cstdio>
 #include <cstdlib>
-#include <cstring>
+#include <memory>
 
 class LogMessage
 {
 public:
-    enum { header_length = 4 };
-    enum { max_body_length = 512 };
+    static const std::size_t HeaderLength = 4;
+    static const std::size_t MaxBodyLength = 9999;
 
-    LogMessage()
-        : body_length_(0)
-    {
-    }
+public:
+    LogMessage();
+    LogMessage(std::string_view message);
 
-    const char* data() const
-    {
-        return data_;
-    }
+    char* getData() const;
+    char* getHeader() const;
+    char* getBody() const;
+    std::string_view getConstBody() const;
 
-    char* data()
-    {
-        return data_;
-    }
+    std::size_t getBodyLength() const;
 
-    std::size_t length() const
-    {
-        return header_length + body_length_;
-    }
+    std::size_t getDataLength() const;
 
-    const char* body() const
-    {
-        return data_ + header_length;
-    }
-
-    char* body()
-    {
-        return data_ + header_length;
-    }
-
-    std::size_t body_length() const
-    {
-        return body_length_;
-    }
-
-    void body_length(std::size_t new_length)
-    {
-        body_length_ = new_length;
-        if (body_length_ > max_body_length)
-        body_length_ = max_body_length;
-    }
-
-    bool decode_header()
-    {
-        char header[header_length + 1] = "";
-        std::strncat(header, data_, header_length);
-        body_length_ = std::atoi(header);
-        if (body_length_ > max_body_length)
-        {
-        body_length_ = 0;
-        return false;
-        }
-        return true;
-    }
-
-    void encode_header()
-    {
-        char header[header_length + 1] = "";
-        std::sprintf(header, "%4d", static_cast<int>(body_length_));
-        std::memcpy(data_, header, header_length);
-    }
-
+    bool decodeHeader();
+    void encodeHeader();
 private:
-    char data_[header_length + max_body_length];
-    std::size_t body_length_;
+    std::shared_ptr<char[]> m_header = std::shared_ptr<char[]>(new char[HeaderLength+1]);
+    std::shared_ptr<char[]> m_data = nullptr;
+    std::size_t m_bodyLength = 0;
 };
 
 #endif // MASCARPONELOGS_LOGMESSAGE_HPP
