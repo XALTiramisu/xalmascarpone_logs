@@ -2,9 +2,7 @@
 
 #include <memory>
 
-#include <iostream>
-
-const std::string_view& Client::FIRST_CLIENT_MESSAGE = "name:";
+#include "Global.hpp"
 
 Client::Client(tcp::socket socket, Server& server) 
     : m_socket(std::move(socket))
@@ -12,42 +10,34 @@ Client::Client(tcp::socket socket, Server& server)
 {
 }
 
-void Client::start()
-{
+void Client::start() {
     doReadHeader();
-}
-
-void Client::deliver(const LogMessage& message)
-{
-    bool writeInProgress = !m_messagesToSendQueue.empty();
-    m_messagesToSendQueue.push_back(message);
-
-    if (!writeInProgress)
-    {
-        doWrite();
-    }
-}
-
-void Client::deliver(std::string_view message) {
-    deliver(LogMessage(message));
 }
 
 void Client::doReadHeader()
 {
     auto self(shared_from_this());
 
+    m_readMessage.reset();
+
     asio::async_read(
         m_socket,
         asio::buffer(m_readMessage.getHeader(), LogMessage::HeaderLength),
         [this, self](std::error_code ec, std::size_t /*length*/)
         {
-            std::cout << m_readMessage.getHeader() << "\n" << std::flush;
+            
+            D(std::cout << "[Client][doReadHeader::async_read::handler]" << D_threadID << "Recieved new message with header \"" << m_readMessage.getHeader() << "\"\n" << std::flush);
+            
             if (!ec && m_readMessage.decodeHeader())
             {
                 doReadBody();
             }
             else
             {
+                if (ec.value() != 10054) {
+                    D(std::cout << "Error: " << ec.value() << " " << ec.message() << std::endl);
+                }
+
                 m_server.leave(shared_from_this());
             }
         }
@@ -61,56 +51,16 @@ void Client::doReadBody()
     asio::async_read(
         m_socket,
         asio::buffer(m_readMessage.getBody(), m_readMessage.getBodyLength()),
-        [this, self](std::error_code ec, std::size_t /*length*/)
+        [this, self](std::error_code errorCode, std::size_t /*length*/)
         {
-            if (!ec)
+            if (!errorCode)
             {
-                // m_server.deliver(m_readMessage);
-                std::cout << "doReadBody() \"" + std::string(m_readMessage.getData()) + "\" " << m_readMessage.getBodyLength() << "\n" << std::flush;
-                if (m_appName.size() == 0) {
-                    if (m_readMessage.getConstBody().find(FIRST_CLIENT_MESSAGE) != 0) {
-                        deliver("Wrong first message");
+                
+                D(std::cout << "[Client][doReadBody::async_read::handler]" << D_threadID << " Received message body: \"" << m_readMessage.getConstBody() << "\" with size of " << m_readMessage.getBodyLength() << "bytes\n" << std::flush);
+                m_server.sendMessageToLogProcessor(m_readMessage.getConstBody());
 
-                        std::cout << "doReadBody() NOT GOOD MESSAGE\n" << std::flush;
-                        return;
-                    }
-
-                    m_appName = m_readMessage.getConstBody().substr(FIRST_CLIENT_MESSAGE.size());
-                    std::cout << "m_appName:" << m_appName << "\n" << std::flush;
-                } else {
-
-                }
-
+                // Wait for new messages
                 doReadHeader();
-            }
-            else
-            {
-                m_server.leave(shared_from_this());
-            }
-        }
-    );
-}
-
-void Client::doWrite()
-{
-    auto self(shared_from_this());
-
-    asio::async_write(
-        m_socket,
-        asio::buffer(
-            m_messagesToSendQueue.front().getData(),
-            m_messagesToSendQueue.front().getDataLength()
-        ),
-        [this, self](std::error_code ec, std::size_t /*length*/)
-        {
-            if (!ec)
-            {
-                m_messagesToSendQueue.pop_front();
-
-                if (!m_messagesToSendQueue.empty())
-                {
-                    doWrite();
-                }
             }
             else
             {

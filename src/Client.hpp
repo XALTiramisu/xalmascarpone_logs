@@ -17,16 +17,10 @@ public:
     Client(tcp::socket socket, Server& server);
 
     void start();
-    void deliver(const LogMessage& message);
-    void deliver(std::string_view message);
 
 private:
     void doReadHeader();
     void doReadBody();
-    void doWrite();
-
-private:
-    static const std::string_view& FIRST_CLIENT_MESSAGE;
 
 private:
     tcp::socket m_socket;

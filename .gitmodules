@@ -1,3 +1,6 @@
 [submodule "extlibs/rapidyaml"]
 	path = extlibs/rapidyaml
 	url = https://github.com/biojppm/rapidyaml.git
+[submodule "extlibs/cryptopp"]
+	path = extlibs/cryptopp
+	url = https://github.com/weidai11/cryptopp.git

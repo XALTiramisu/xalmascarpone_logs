@@ -18,3 +18,8 @@ git submodule update
 cd $DIR/extlibs/rapidyaml/ext/c4core
 git submodule init
 git submodule update
+
+cd $DIR/extlibs/rapidyaml/ext/cryptopp
+CXXFLAGS="-DNDEBUG -g2 -O3 -std=c++11" mingw32-make
+
+cd $DIR

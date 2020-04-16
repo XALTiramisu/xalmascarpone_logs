@@ -3,7 +3,7 @@
 
 #include <memory>
 
-#include <iostream>
+#include "Global.hpp"
 
 Server::Server(asio::io_context& io_context, const tcp::endpoint& endpoint, LogsProcessorClient& logsProcessorClient)
     : m_acceptor(io_context)
@@ -26,25 +26,24 @@ void Server::leave(ClientPtr session) {
     }
 }
 
-void Server::sendMessageToLogProcessor(const LogMessage& message) {
-    // m_logsProcessorClient.
+void Server::sendMessageToLogProcessor(std::string_view message) {
+    m_logsProcessorClient.logMessage(message);
 }
 
-void Server::acceptConnection()
-{
-    std::cout << std::this_thread::get_id() << "|acceptConnection|Entered\n" << std::flush;
+void Server::acceptConnection() {
+    D(std::cout << "[Server][acceptConnection]" << D_threadID << "Called" << std::endl);
 
     m_acceptor.async_accept(
-        [this](std::error_code ec, tcp::socket socket)
-        {
-            std::cout << std::this_thread::get_id() << "|acceptConnection|New connection, errors: " << ec << ":" << ec.message() << "\n" << std::flush;
+        [this](std::error_code errorCode, tcp::socket socket) {
+            D(std::cout << "[Server][acceptConnection::async_accept::handler]" << D_threadID << "New connection incoming" << std::endl);
 
-            if (!ec)
-            {
-               m_sessions.emplace_back(std::make_shared<Client>(std::move(socket), *this));
-               m_sessions.back()->start();
+            if (!errorCode) {
+                D(std::cout << "[Server][acceptConnection::async_accept::handler]" << D_threadID << "Accepted connection" << std::endl);
+
+                m_sessions.emplace_back(std::make_shared<Client>(std::move(socket), *this));
+                m_sessions.back()->start();
             } else {
-
+                D(std::cout << "[Server][acceptConnection::async_accept::handler]" << D_threadID << "Connection with error [" << errorCode << "][" << errorCode.message() << "]" << std::endl);
             }
 
             acceptConnection();

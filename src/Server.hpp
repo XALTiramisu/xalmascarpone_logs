@@ -18,7 +18,7 @@ public:
     Server(asio::io_context& io_context, const tcp::endpoint& endpoint, LogsProcessorClient& logsProcessorClient);
 
     void leave(ClientPtr session);
-    void sendMessageToLogProcessor(const LogMessage& message);
+    void sendMessageToLogProcessor(std::string_view message);
 
 private:
     void acceptConnection();

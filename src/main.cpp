@@ -5,53 +5,16 @@
 #include <ryml_std.hpp>
 #include <fstream>
 #include <string>
-#include <thread>
 #include <chrono>
 
 #include "Server.hpp"
 #include "LogsProcessorClient.hpp"
+#include "IOServicePool.hpp"
+
+#include "Global.hpp"
 
 using asio::ip::tcp;
 using namespace std::chrono_literals;
-
-class IOServicePool {
-public:
-    IOServicePool(asio::io_context& ioContext, std::size_t threadsCount) 
-        : m_guard {asio::make_work_guard(ioContext)}
-    {
-        std::cout << std::this_thread::get_id() << "|IOServicePool::constructor()|threadsCount:" << threadsCount << "\n" << std::flush;
-
-        for (std::size_t i=0; i < threadsCount; ++i)
-        {
-            m_threads.emplace_back(
-                [&ioContext]() {
-                    std::cout << std::this_thread::get_id() << "|Started asio thread\n" << std::flush;
-                    asio::error_code er;
-                    ioContext.run(er);
-                    std::cout << "Error is:" << er.message() << "\n";
-                }
-            );
-        }
-    }
-
-    ~IOServicePool() {
-        m_guard.reset();
-        std::for_each(
-            m_threads.begin(), 
-            m_threads.end(), 
-            [](std::thread& thread) {
-                thread.join();
-            }
-        );
-    }
-
-    IOServicePool(const IOServicePool&) = delete;
-    IOServicePool& operator=(const IOServicePool&) = delete;
-
-private:
-    std::vector<std::thread> m_threads;
-    asio::executor_work_guard<asio::io_context::executor_type> m_guard;
-};
 
 int main(int argc, char** argv) {
     if (argc < 2) {
@@ -124,24 +87,26 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::cout << "Main thread ID:" << std::this_thread::get_id() << "\n" << std::flush;
+    D(std::cout << "[main]Main thread ID:" << std::this_thread::get_id() << "\n" << std::flush);
 
     asio::io_context ioContext;
     IOServicePool ioContextPool(ioContext, threadsCount);
 
-    try {
-        LogsProcessorClient logsProcessorClient(ioContext);
-        // logsProcessorClient.connect(logsProcessorIP, logsProcessorPort, logsProcessorKey);
-
-        Server server(ioContext, tcp::endpoint(tcp::v4(), port), logsProcessorClient);
-
-        while (true) {
-            // std::cout << std::this_thread::get_id() << "|Sleeping for 600s more\n" << std::flush;
-            std::this_thread::sleep_for(600s);
+    LogsProcessorClient logsProcessorClient(
+        ioContext,
+        [&logsProcessorIP, &logsProcessorPort]()->std::tuple<std::string, std::string>{
+            return std::make_tuple(logsProcessorIP, logsProcessorPort);
+        },
+        [&logsProcessorKey]()->std::string{
+            return logsProcessorKey;
         }
-    }
-    catch (std::exception& e) {
-        std::cerr << "Exception: " << e.what() << "\n";
+    );
+
+    Server server(ioContext, tcp::endpoint(tcp::v4(), port), logsProcessorClient);
+
+    while (true) {
+        // std::cout << std::this_thread::get_id() << "|Sleeping for 600s more\n" << std::flush;
+        std::this_thread::sleep_for(600s);
     }
 
     return 0;
